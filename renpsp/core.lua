@@ -41,6 +41,7 @@ function clearEngineState()
 		media = {
 			names = {},
 			images = {},
+			imgcache = {},
 			background = 'black'
 		},
 		history = {
@@ -48,8 +49,9 @@ function clearEngineState()
 			i=0
 		},
 		control = {},
-		homepath = System.currentDirectory()
-
+		homepath = GAME_curdir(),
+		curgamepath = nil,
+		cursavepath = nil
 	}
 end
 
@@ -78,10 +80,22 @@ function ENGINE:CtrlGame(pad, oldpad)
 	elseif pad:circle() and not oldpad:circle() then
 		self.control.debug = not self.control.debug
 	elseif pad:triangle() and not oldpad:triangle() then
-		screen:save("screenshot.png")
+		flutter = os.date("%Y%m%d%H%M%S")
+		if CURRENT_SYSTEM == "WIN" then
+			screen:save("screenshot.png")
+		else
+			if GAME_chkDir("ms0:/PICTURE/RenPSP") == false then
+				GAME_makeDir("ms0:/PICTURE/RenPSP")
+			end
+			screen:save("ms0:/PICTURE/RenPSP/screenshot_"..tostring(flutter)..".png")
+		end
 	elseif pad:cross() and not oldpad:cross() and not self.state.is_error then
 		self.state.hide_text = false
-		self.script.continue = true
+		if CURRENT_SYSTEM == "LPE" then
+			ENGINE:Timer(100)
+		else
+			self.script.continue = true
+		end
 	elseif pad:l() and not oldpad:l() then
 		self:PrevState()
 	elseif pad:r() and not oldpad:r() and not self.state.is_error then
@@ -120,6 +134,9 @@ function ENGINE:DrawMenu(menu)
 	if table.maxn(menu.a)~=0 then
 		self.state.text = {menu.q}
 		local y0 = (200 - table.maxn(menu.a)*25)/2
+		if table.maxn(self.state.text)==0 then
+            y0 = y0 + 40
+        end
 		for i=1,table.maxn(menu.a) do
 			local l = menu.a[i]
 			if i == menu.active then
@@ -130,32 +147,43 @@ function ENGINE:DrawMenu(menu)
 		end	
 	end
 
-	screen:blit(0, 200, self.media.text_frame)
-	TEXT:WriteParagraph(10,205,self.state.text,66)
-	if self.control.debug then
-		ENGINE:DrawDebug()
+	if table.maxn(self.state.text)~=0 then
+		screen:blit(0, 200, self.media.text_frame)
+		TEXT:WriteParagraph(10,205,self.state.text,66)
+		if self.control.debug then
+		   	ENGINE:DrawDebug()
+		end
 	end
 end
 
 function ENGINE:DrawDebug()
-	local text = 'File: ' .. self.state.current_file .. ':' .. self.state.current_position
+	if CURRENT_SYSTEM == "WIN" then
+		textdbg = 'Lua Player Windows: Debug Mode'
+	else
+		textdbg = 'System.getFreeMemory: ' .. tostring(System.getFreeMemory())
+	end
 	GAME_superblit(
 			0,
 			0,
 			self.media.text_frame,
 			0,
-			self.media.text_frame:height()-15,
+			GAME_imageheight(self.media.text_frame)-15,
 			480,
-			self.media.text_frame:height()
+			GAME_imageheight(self.media.text_frame)
 		)
-	TEXT:WriteLineCenter(2,text)
+	TEXT:WriteLineCenter(2,textdbg)
 end
 
 function ENGINE:ErrorState(error_text)
-	print('ERROR:'..error_text)
+	GAME_print('ERROR:'..error_text)
 	self.script.continue = false
 	self.state.text = {'ERROR:',error_text}
 	self.state.is_error = true
+end
+
+function ENGINE:TextBoxOut(textin)
+        self.script.continue = false
+        self.state.text = {textin}
 end
 
 function ENGINE:ControlInit()

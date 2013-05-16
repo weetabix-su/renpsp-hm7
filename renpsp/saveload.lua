@@ -89,20 +89,20 @@ end
 function debugPrintObject(obj)
 	local t = type(j)
 	if t == 'table' then
-		print("[")
+		GAME_print("[")
 		for i,j in pairs(tbl) do
 			debugPrintObject(i)
 			debugPrintObject(j)
 		end
-		print("]")
+		GAME_print("]")
 	elseif t == 'number' then
-		print("#")
-		print(tostring(j))
+		GAME_print("#")
+		GAME_print(tostring(j))
 	elseif t == 'string' then
-		print('X')
-		print(j)
+		GAME_print('X')
+		GAME_print(j)
 	else
-		print('nil')
+		GAME_print('nil')
 	end
 end
 
@@ -142,7 +142,7 @@ function fileReadObject(f)
 	elseif data == ']' or data==nil then
 		data = ']'
 	else
-		print('Error: data is '..data)
+		GAME_print('Error: data is '..data)
 		data = nil
 	end
 	return data
@@ -166,11 +166,14 @@ function ENGINE:LoadStateFromFile(fname)
 	local state = {menu = {}}
 
 	f = io.open(fname,"r")
+        if f == nil then
+            return f
+        end
 
 	local current_file = f:read("*l")
 	local current_position = tonumber(f:read("*l"))
 
-	state.bgname = f:read("*l")
+	local current_bg = f:read("*l")
 
 	state.text = fileReadParagraph(f)
 	state.menu.a = fileReadParagraph(f)
@@ -197,17 +200,17 @@ function ENGINE:LoadStateFromFile(fname)
 
 	f:close()
 
-	return {st=state,f=current_file,pos=current_position}
+	return {st=state,f=current_file,pos=current_position,bck=current_bg}
 end
 
 function ENGINE:FileSeek(fname,pos)
 	if self.state.current_file ~= fname then
 		if self.state.current_file ~= nil then
 			self.script.gamefile:close()
-			print('Closing '..self.state.current_file)
+			GAME_print('Closing '..self.state.current_file)
 		end
 		self.script.gamefile = io.open(fname,"r")
-		print('Opening '..fname)
+		GAME_print('Opening '..fname)
 	end
 	self.state.current_file = fname
 	self.script.gamefile:seek('set',pos)
@@ -217,21 +220,35 @@ function ENGINE:FileSeekToState(st)
 	self:FileSeek(st.current_file, st.current_position)
 end
 
-function ENGINE:Load()
-	local loaded = self:LoadStateFromFile("saves/default.sav")
+function ENGINE:Load(xtra)
+        if xtra ~= nil then
+            savname = xtra
+        elseif xtra == nil then
+            savname = "default"
+        end
+	local loaded = self:LoadStateFromFile(ENGINE.cursavepath.."/"..savname..".sav")
+        if loaded == nil then
+            return 1 < 0
+        end
 	self:FileSeek(loaded.f, loaded.pos)
 	self.state = stateClone(loaded.st)
 	self.state.menu.active = 1
-	self:Scene(self.state.bgname)
+	self:Scene(loaded.bck)
 	continue = false
 
 	self.history.i = 1
 	self.history.states = {}
 	self.history.states[1] = stateClone(self.state)
+        
 end
 
-function ENGINE:Save()
-	f = io.open("saves/default.sav","w")
+function ENGINE:Save(xtra)
+        if xtra ~= nil then
+            savname = xtra
+        elseif xtra == nil then
+            savname = "default"
+        end
+	f = io.open(ENGINE.cursavepath.."/"..savname..".sav","w")
 	fileWriteLine(f,self.state.current_file)
 	fileWriteLine(f,self.script.gamefile:seek())
 	fileWriteLine(f,self.state.bgname)
@@ -248,8 +265,8 @@ function ENGINE:Save()
 		end
 	end
 	f:close()
-	saveScreen("saves/default.png")
-	f = io.open("saves/default.lst","w")
+	saveScreen(ENGINE.cursavepath.."/default.png")
+	f = io.open(ENGINE.cursavepath.."/default.lst","w")
 	for name,d in pairs(_G) do
 		fileWriteLine(f,name)
 	end
@@ -262,8 +279,8 @@ function ENGINE:TakeScreenshot()
 	ENGINE.tmp_retImage = Image.createEmpty(x,y)
 	for i=0,x-1 do
 		for j=0,y-1 do
-			col = screen:pixel(i*screen:width()/x,j*screen:height()/y)
-			ENGINE.tmp_retImage:pixel(i,j,col)
+			col = GAME_imagegetpixel(screen,i*GAME_imagewidth(screen)/x,j*GAME_imageheight(screen)/y)
+			GAME_imagesetpixel(ENGINE.tmp_retImage,i,j,col)
 		end
 	end
 end
@@ -274,10 +291,13 @@ end
 
 
 function ENGINE:LoadPersistent()
-	f = io.open("saves/persistent","r")
+	fname = ENGINE.cursavepath.."/persistent"
+	f = io.open(fname,"r")
 	if not f then
 		PERSISTENT = {}
+		GAME_print('Persistent not found at '..fname)
 		self:SavePersistent()
+		GAME_print('Created empty persistent')
 	else
 		PERSISTENT = fileReadTable(f)
 		f:close()
@@ -285,7 +305,9 @@ function ENGINE:LoadPersistent()
 end
 
 function ENGINE:SavePersistent()
-	f = io.open("saves/persistent","w")
+	fname = ENGINE.cursavepath.."/persistent"
+	f = io.open(fname,"w")
+	GAME_print("opening for write "..fname)
 	fileWriteTable(f,PERSISTENT)
 	f:close()
 end

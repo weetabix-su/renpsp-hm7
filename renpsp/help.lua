@@ -34,14 +34,21 @@ function ENGINE:ReadFile(fname)
 	return lines
 end
 
-function ENGINE:Help()
-	help = self:ReadFile(self.homepath .. "/help.txt")
+HELPFILE = nil
+
+function ENGINE:Help(helptxt)
+	if helptxt ~= nil then
+		help = self:ReadFile(helptxt)
+	elseif helptxt == nil then
+		help = self:ReadFile(self.homepath .. "/help.txt")
+	end
+	
 	pages = {}
 	pagemax = 1
 	tmp = {}
 	k = 1
 
-    for i=1,table.maxn(help) do
+	for i=1,table.maxn(help) do
 		if  string.sub(help[i],1,4)=='----' then
 			pages[pagemax] = tmp
 			tmp = {}
@@ -56,8 +63,8 @@ function ENGINE:Help()
 
 	page = 1
 
-    backup_font = TEXT.curFontId
-    TEXT:UseFont('lucida_b')
+	backup_font = TEXT.curFontId
+	TEXT:UseFont('lucida_b')
 
 	helpexit = false
 	while not helpexit do
@@ -72,5 +79,5 @@ function ENGINE:Help()
 		self:Control('CtrlHelp') 
 	end
 	self.state.chars["lurk"].position = "none"
-    TEXT:UseFont(backup_font)
+	TEXT:UseFont(backup_font)
 end

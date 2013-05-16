@@ -14,4 +14,8 @@ CURRENT_SYSTEM = "HM7"
 SHOW_FPS = false       
 
 System.currentDirectory(RENPSP_FOLDER)
+
+-------------------
+------ START -----
+-------------------
 dofile("main.lua")

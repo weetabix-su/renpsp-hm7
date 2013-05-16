@@ -4,7 +4,7 @@ end
 
 function GAME_CPU(x)
 	if CURRENT_SYSTEM == "HM7" then
-		System.setCpuSpeed(x)
+		System.setcpuspeed(x)
 	end
 end
 
@@ -33,18 +33,16 @@ function GAME_fps()
 	end
 end
 
---WEETABIX NOTE: System.draw is an LPE-only requirement
 function GAME_draw()
-	if CURRENT_SYSTEM == "LPE" then
-		System.draw()
+	if CURRENT_SYSTEM == "HM7" then
+		--System.startDraw()
 	end
 end
 
 function GAME_nodraw()
---WEETABIX NOTE: System.endDraw is an LPE-only requirement
-	if CURRENT_SYSTEM == "LPE" then
-		System.endDraw()
-	end
+	--if CURRENT_SYSTEM == "HM7" then
+		--System.endDraw()
+	--end
 	if SHOW_FPS then
 		GAME_fps()
 	end
@@ -70,8 +68,8 @@ end
 
 function GAME_start()
 	if CURRENT_SYSTEM == "HM7" then
-		--System.draw()
-		screen:slowClear() 
+		--System.startDraw()
+		screen:clear() 
 		--System.endDraw()
 		System.usbDiskModeActivate()
 	end
@@ -84,3 +82,63 @@ function GAME_quit()
 		System.quit()
 	end
 end
+
+function GAME_print(text)
+	tmpFile = io.open(ROOT_FOLDER.."/renpsp.log","a")
+	tmpFile:write(text..'\n') 
+	tmpFile:close()
+	print(text)
+end
+
+function GAME_curdir(dir)
+	currentDirectoryFunc =  nil
+	if CURRENT_SYSTEM == "LPP" then
+		currentDirectoryFunc = System.currentDir
+	else
+		currentDirectoryFunc = System.currentDirectory
+	end
+
+	if dir == nil then
+		return currentDirectoryFunc()
+	else
+		tmp_cwd = currentDirectoryFunc()
+		currentDirectoryFunc(dir)
+		return tmp_cwd
+	end
+end
+
+function GAME_listdir(d)
+	if CURRENT_SYSTEM == "LPP" then
+		if d ~= nil then
+			return System.listDir(d)
+		else
+			return System.listDir()
+		end
+	else
+		if d ~= nil then
+			return System.listDirectory(d)
+		else
+			return System.listDirectory()
+		end
+	end
+end
+
+function GAME_chkDir(x)
+	local num = 0
+	if GAME_listdir(x) == nil then
+		return num > 0
+	end
+	for idx,item in pairs(GAME_listdir(x)) do
+		num = num+1
+	end
+	return num > 0
+end
+
+function GAME_makeDir(x)
+	if CURRENT_SYSTEM == "LPP" then
+		System.createDir(x)
+	else
+		System.createDirectory(x)
+	end
+end
+

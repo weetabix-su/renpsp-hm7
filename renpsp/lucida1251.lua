@@ -9,19 +9,20 @@
 
 TEXT = {fonts={}}
 TEXT.fonts['lucida_b'] =  {
-		img = Image.load("fonts/lucida_black.png"),
+		img = RENPSP_FOLDER.."/fonts/lucida_black.png",
 		fontDx = 7,
 		fontDy = 11
 	}
 	
 TEXT.fonts['lucida_w'] =  {
-		img = Image.load("fonts/lucida_white.png"),
+		img = RENPSP_FOLDER.."/fonts/lucida_white.png",
 		fontDx = 7,
 		fontDy = 11
 	}
 
 function TEXT:UseFont(name)
-	self.curFont   = TEXT.fonts[name].img
+	GAME_print('loading font '..name..' from '..TEXT.fonts[name].img)
+	self.curFont   = Image.load(TEXT.fonts[name].img)
 	self.curFontDx = TEXT.fonts[name].fontDx
 	self.curFontDy = TEXT.fonts[name].fontDy
 	self.curFontId = name
@@ -47,7 +48,7 @@ function TEXT:getSymbol(b)
 	local fontDx = self.curFontDx
 	local fontDy = self.curFontDy
 
-	if     (b>='À') and (b<='ß') then
+	if	 (b>='À') and (b<='ß') then
 		return {x = fontDx*(string.byte(b)-string.byte('À')), y=fontDy*0}
 	elseif (b>='à') and (b<='ÿ') then
 		return {x = fontDx*(string.byte(b)-string.byte('à')), y=fontDy*1}

@@ -9,9 +9,9 @@ dofile("fakepython.lua")
 dofile("fallmenu.lua")
 dofile("help.lua")
 dofile("lucida1251.lua")
+dofile("hm7scr.lua")
 dofile("media.lua")
 dofile("saveload.lua")
-dofile("script.lua")
 
 -------------------
 -- SYSTEM START ---
@@ -23,7 +23,7 @@ TEXT:UseFont('lucida_w')
 GAME_CPU(222)
 
 RenpyClass(RENPY)
-System.currentDirectory('..')
+GAME_curdir('..')
 
 ENGINE:SelectGame(GAMES_FOLDER)
 ENGINE:PrepareAllInPath('game')

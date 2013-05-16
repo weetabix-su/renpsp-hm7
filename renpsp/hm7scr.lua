@@ -76,7 +76,7 @@ function explodeLexer(str)
 		newLexem = newLexem or (TEXT:isWhite(chr))
 		newLexem = newLexem or (TEXT:isLetter(chr) and not TEXT:isLetterNumber(prev))
 		newLexem = newLexem or (chr=='=' and prev~='=')
-		if chr == '"' or chr == '\'' then
+		if (chr == '"' or chr == '\'') and not ignorewhite then
 			if not inQ then
 				whatQ = chr
 				if not TEXT:isWhite(prev) then
@@ -100,7 +100,7 @@ function explodeLexer(str)
 			end
 			return {LEXEM.word('pass')}
 		elseif chr == '\\' and inQ then
-     		chr = string.sub(str,i+1,i+1)
+	 		chr = string.sub(str,i+1,i+1)
 			local tmp
 			if chr == '\\' then
 				tmp = '\\'
@@ -163,14 +163,15 @@ function ENGINE:ExecuteScriptLine(cmd)
 	-- cmd[1].type == 'word'
 
 	if cmd[1].data == 'scene' then
-		self.state.bgname = cmd[2].data
+		bgname = cmd[2].data
 		for i=3,table.maxn(cmd) do
 			if cmd[i].data == 'with' then
 				break
 			end
-			self.state.bgname = self.state.bgname..' '..cmd[i].data
+			bgname = bgname..' '..cmd[i].data
 		end
-		self:Scene(self.state.bgname)
+		self:ClearScene()	-- WEETABIX NOTE: Background clearing code transferred to media.lua
+		self:Scene(bgname)
 		self:ClearChars()
 	elseif cmd[1].data == 'show' then
 		local who = cmd[2].data
@@ -192,6 +193,14 @@ function ENGINE:ExecuteScriptLine(cmd)
 	elseif cmd[1].data == 'hide' then
 		local who = cmd[2].data
 		self.state.chars[who] = nil
+                if  self.media.imgcache[who] then
+			self.media.imgcache[who].surf:clear()
+			if CURRENT_SYSTEM == "LPE" then
+				prevsurf = self.media.imgcache[who].surf
+				Image.free(prevsurf)
+			end
+			self.media.imgcache[who] = nil
+		end
 	elseif cmd[1].data == 'with' then
 		-- do nothing
 	elseif cmd[1].data == 'jump' then
@@ -226,6 +235,15 @@ function ENGINE:ExecuteScriptLine(cmd)
 		self:EvalLua(cmd[2].data)
 	elseif cmd[1].data == 'pass' then
 		-- do nothing
+--	elseif cmd[1].data == 'centered' then
+--		if self.media.names[cmd[2].data]~=nil then
+--			cmd[2].data = self.media.names[cmd[2].data]
+--		end
+--		self.state.text = {}
+--		for i=2,table.maxn(cmd) do
+--			self.state.text[i] = cmd[i].data
+--		end
+--		self.script.continue = false
 	else
 		if self.media.names[cmd[1].data]~=nil then
 			cmd[1].data = self.media.names[cmd[1].data]
@@ -302,7 +320,7 @@ function ENGINE:Eval()
 			if type(cond) == 'number' then
 				cond = (cond ~= 0)
 			end
-			--print(cmdlua..': '..tostring(cond))
+			--GAME_print(cmdlua..': '..tostring(cond))
 
 			if type(cond) ~= 'boolean' then
 				self:ErrorState('if '..cmdlua..': should be boolean')
@@ -320,8 +338,8 @@ function ENGINE:Eval()
 					cmd = explodeLexer(line)
 					if cmd[1].data ~= 'elseif' and cmd[1].data ~= 'elif' then
 						if cmd[1].data ~= 'else' then
-        					self.script.gamefile:seek('set',back)
-        				end    
+							self.script.gamefile:seek('set',back)
+						end	
 						break
 					end
 				else
@@ -366,9 +384,7 @@ function ENGINE:Prepare(fname)
 					i = i + 1
 				end			
 			end
-			local im = cmd[i+1].data
-			print('Loading '..im..'...')
-			self.media.images[key .. " " .. additional] = Image.load(im)
+			self.media.images[key .. " " .. additional] = ENGINE.curgamepath..'/'..cmd[i+1].data
 		elseif cmd[1].data == 'define' then
 			local key = cmd[2].data
 			local data = cmd[5].data
@@ -447,34 +463,36 @@ function ENGINE:GotoStart()
 end
 
 function ENGINE:PrepareAllInPath(path)
-	local cwd = System.currentDirectory(path)
-	for idx,item in pairs(System.listDirectory()) do
+	local cwd = GAME_curdir(path)
+	for idx,item in pairs(GAME_listdir()) do
 		if item.name == '.' or item.name == '..' then
 			-- do nothing
 --		elseif GAME_isdir(item) then
 --			self:PrepareAllInPath(item.name)
 		elseif string.find(string.lower(item.name),'rpy$') ~=nil then
-			print('Processing '..item.name..'...')
-			self:Prepare(System.currentDirectory()..'/'..item.name)
+			GAME_print('Processing '..item.name..'...')
+			self:Prepare(GAME_curdir()..'/'..item.name)
 		end
 	end
-	System.currentDirectory(cwd)
+	GAME_curdir(cwd)
 end
 
 function ENGINE:SelectGame(path)
-	System.currentDirectory(path)
+	GAME_curdir(path)
 
 	local i=1
 	ENGINE.script.continue = false
 	ENGINE.state.menu = {a={},jmp={},active=1}
 	idx = 1
-	for i,j in pairs(System.listDirectory()) do
+	for i,j in pairs(GAME_listdir()) do
 		if string.sub(j.name,1,1)~='.' then
 			ENGINE.state.menu.a[idx] = j.name
 			ENGINE.state.menu.jmp[idx] = j.name
 			idx = idx + 1
 		end
 	end
+
+	self:Scene('white')
 
 	while not ENGINE.script.continue do
 		GAME_draw()
@@ -484,6 +502,16 @@ function ENGINE:SelectGame(path)
 		ENGINE:Control('CtrlMenu')
 	end
 
-	System.currentDirectory(self.state.menu.jmp[self.state.menu.active])
-	ENGINE.state.menu = {a={},jmp={},active=1}	
+	GAME_curdir(self.state.menu.jmp[self.state.menu.active])
+	ENGINE.curgamepath = path..'/'..self.state.menu.jmp[self.state.menu.active]..'/game'
+	ENGINE.cursavepath = path..'/'..self.state.menu.jmp[self.state.menu.active]..'/saves'
+	ENGINE.curskinpath = path..'/'..self.state.menu.jmp[self.state.menu.active]..'/skin'
+	GAME_print('ENGINE.curgamepath = '..ENGINE.curgamepath)
+	ENGINE.state.menu = {a={},jmp={},active=1}
+	if GAME_chkDir(ENGINE.cursavepath) == false then
+		GAME_makeDir(ENGINE.cursavepath)
+	end
+	if GAME_chkDir(ENGINE.curskinpath) == true then
+		self:SkinReload(ENGINE.curskinpath)
+	end
 end
